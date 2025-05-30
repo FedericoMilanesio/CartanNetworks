@@ -1,0 +1,23 @@
+name: hyperbolic
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+
+dependencies:
+  - python=3.12
+  - pip
+  - numpy
+  - scipy=1.11.4
+  - pandas
+  - scikit-learn
+  - pytorch=2.4.1
+  - pytorch-cuda=12.1
+  - torchvision
+  - torchaudio
+  - tqdm
+  - matplotlib
+  - ipykernel
+
+  - pip:
+      - geoopt==0.5.0
