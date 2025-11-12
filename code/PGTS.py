@@ -251,7 +251,7 @@ class HyperbolicAlgebra(Manifold):
         Returns:
             torch.Tensor: tensor of the tangent space of y.
         """
-        v[..., :1] += (v[...,1:] * (self.fiber(y) - self.fiber(x))).sum(dim=-1)
+        v[..., 1:] += (self.fiber(x) - self.fiber(y))*self.cartan(v)
         return v
     
     def norm(self, x: torch.Tensor, u: torch.Tensor, *, keepdim=True):
@@ -277,7 +277,7 @@ class HyperbolicAlgebra(Manifold):
         Returns:
             torch.Tensor: exp_x(v)
         """
-        v[..., :1] -= (v[...,1:]*self.fiber(x)).sum(dim=-1)
+        v = self.transp(x, self.zero(x), v)
         z = self.exp0(v)
         return self.group_mul(z, x)
 
@@ -318,7 +318,7 @@ class HyperbolicAlgebra(Manifold):
         logmap_xfiber = -distance.unsqueeze(-1) * grad_d_xfiber
         
         logmap_val = torch.cat([logmap_x0.unsqueeze(-1), logmap_xfiber], dim=-1)
-        return logmap_val
+        return self.egrad2rgrad(x, logmap_val)
 
     def zero(self, x: torch.Tensor):
         """Creates a zero-like tensor from a given tensor.
