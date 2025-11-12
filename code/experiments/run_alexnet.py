@@ -173,7 +173,7 @@ def train(config, path, seed):
     
     model = model_dict[config['mtype']](
        input_size = dataset_input_sizes[config['dataset']],
-       classes = dataset_classes[config['dataset']],
+       num_classes = dataset_classes[config['dataset']],
        input_channels = dataset_channels[config['dataset']])
     model.to(device)
     pbar = tqdm(range(epochs))
