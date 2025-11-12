@@ -52,7 +52,7 @@ class CelebAThreeAttrClassification(CelebA):
 
 class TinyImagenet(ImageFolder):
    def __init__(self, root='files/tiny-224', train=True, transform = None, target_transform = None, loader = ..., is_valid_file = None, allow_empty = False):
-      super().__init__(root/('train' if train else 'test'), transform, target_transform, loader, is_valid_file, allow_empty)
+      super().__init__(root + ('/train' if train else '/test'), transform, target_transform, loader, is_valid_file, allow_empty)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
