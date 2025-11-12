@@ -132,7 +132,7 @@ epochs = 1000
 save_model = False
 
 def path_from_config(config):
-    return base_path / (config['dataset'].value) / (config['mtype'].value + '_' + config['activation'].value + '_' + '_' + str(config['learning_rate'])[2:6])
+    return base_path / (config['dataset'].value) / (config['mtype'].value + str(config['learning_rate'])[2:6])
 
 
 def train(config, path, seed):
@@ -232,7 +232,6 @@ def train(config, path, seed):
         test_loss = sum(test_losses)/len(test_losses)
         rows.append([
             config['mtype'],
-            config['activation'],
             test_accuracy,
             test_loss,
             train_accuracy,
@@ -259,7 +258,6 @@ def train(config, path, seed):
     
     df = pd.DataFrame(rows, columns = [
        'Model',
-       'Activation',
        'Test accuracy',
        'Test loss',
        'Train accuracy',
