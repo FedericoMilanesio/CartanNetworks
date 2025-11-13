@@ -3,6 +3,7 @@ import os
 from enum import Enum
 from tqdm import tqdm
 from time import time
+import pdb
 
 sys.path.append(os.path.abspath("code"))
 
@@ -10,6 +11,34 @@ import layers, models, resnet
 from geoopt.optim import RiemannianSGD
 import geoopt
 from geoopt.manifolds import Sphere
+
+sys.path.append(os.path.abspath("HyperbolicCV/code"))
+from classification.models.classifier import ResNetClassifier
+
+from torchvision.models.resnet import ResNet, BasicBlock
+
+class ResNet18(ResNet):
+    def __init__(self, block=BasicBlock, layers=[2,2,2,2], num_classes = 1000, zero_init_residual = False, groups = 1, width_per_group = 64, replace_stride_with_dilation = None, norm_layer = None):
+       super().__init__(block, layers, num_classes, zero_init_residual, groups, width_per_group, replace_stride_with_dilation, norm_layer)
+
+class FullyResNet(ResNetClassifier):
+       def __init__(self, 
+            num_classes = 200
+        ):
+        super().__init__(
+            num_layers=18,
+            enc_type = 'lorentz', 
+            dec_type = 'lorentz',
+            enc_kwargs=dict(),
+            dec_kwargs={
+               'clip_r' : 1.,
+                'embed_dim' : 512,
+                'num_classes' : num_classes,
+                'type':'mlr',
+                'k':1.,
+                'learn_k':False
+            }
+            )
 
 import numpy as np
 
@@ -109,6 +138,7 @@ class model_type(Enum):
     hresnet34 = 'hresnet34'
     resnet18 = 'resnet18'
     resnet34 = 'resnet34'
+    fresnet18 = 'fresnet18'
 
 class HResNet34(resnet.HResNet):
     def __init__(self,
@@ -142,7 +172,9 @@ model_dict = {
     model_type.halexnet: models.HyperAlexNetCifar,
     model_type.alexnet: models.AlexNetCifar,
     model_type.hresnet18: HResNet18,
-    model_type.hresnet34: HResNet34
+    model_type.hresnet34: HResNet34,
+    model_type.fresnet18: FullyResNet,
+    model_type.resnet18: ResNet18
 }
 
 configs = [
@@ -151,7 +183,9 @@ configs = [
      'dataset': w} for x,z,w in
      product(
         [
-           model_type.hresnet34,
+#           model_type.hresnet34,
+#            model_type.fresnet18
+            model_type.resnet18
         ],
         np.logspace(-1, -3, 5),
        [
@@ -204,6 +238,7 @@ def train(config, path, seed):
                               batch_size = 1024,
                               shuffle=True,
                               drop_last=True)
+    
     
     model = model_dict[config['mtype']](num_classes = dataset_classes[config['dataset']])
     model.to(device)
