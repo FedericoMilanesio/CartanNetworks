@@ -264,7 +264,7 @@ class HyperbolicConv1d(torch.nn.Module):
         else:
             self.betas = None
         
-        s = ClippedExpSphere(clip=torch.tensor(1e-2/out_channels))
+        s = ClippedExpSphere(clip=torch.tensor(1e-3/out_channels))
 
         self.thetas = ManifoldParameter(
              ManifoldTensor(
@@ -413,7 +413,7 @@ class HyperbolicConv2d(torch.nn.Module):
         else:
             self.betas = None
         
-        s = ClippedExpSphere(clip=torch.tensor(1e-2/out_channels))
+        s = ClippedExpSphere(clip=torch.tensor(1e-3/out_channels))
 
         self.thetas = ManifoldParameter(
              ManifoldTensor(
