@@ -12,8 +12,8 @@ from geoopt.optim import RiemannianSGD
 import geoopt
 from geoopt.manifolds import Sphere
 
-sys.path.append(os.path.abspath("HyperbolicCV/code"))
-from classification.models.classifier import ResNetClassifier
+#sys.path.append(os.path.abspath("HyperbolicCV/code"))
+#from classification.models.classifier import ResNetClassifier
 
 from torchvision.models.resnet import ResNet, BasicBlock
 
@@ -21,24 +21,24 @@ class ResNet18(ResNet):
     def __init__(self, block=BasicBlock, layers=[2,2,2,2], num_classes = 1000, zero_init_residual = False, groups = 1, width_per_group = 64, replace_stride_with_dilation = None, norm_layer = None):
        super().__init__(block, layers, num_classes, zero_init_residual, groups, width_per_group, replace_stride_with_dilation, norm_layer)
 
-class FullyResNet(ResNetClassifier):
-       def __init__(self, 
-            num_classes = 200
-        ):
-        super().__init__(
-            num_layers=18,
-            enc_type = 'lorentz', 
-            dec_type = 'lorentz',
-            enc_kwargs=dict(),
-            dec_kwargs={
-               'clip_r' : 1.,
-                'embed_dim' : 512,
-                'num_classes' : num_classes,
-                'type':'mlr',
-                'k':1.,
-                'learn_k':False
-            }
-            )
+#class FullyResNet(ResNetClassifier):
+#       def __init__(self, 
+#            num_classes = 200
+#        ):
+#        super().__init__(
+#            num_layers=18,
+#            enc_type = 'lorentz', 
+#            dec_type = 'lorentz',
+#            enc_kwargs=dict(),
+#            dec_kwargs={
+#               'clip_r' : 1.,
+#                'embed_dim' : 512,
+#                'num_classes' : num_classes,
+#                'type':'mlr',
+#                'k':1.,
+#                'learn_k':False
+#            }
+#            )
 
 import numpy as np
 
@@ -173,7 +173,7 @@ model_dict = {
     model_type.alexnet: models.AlexNetCifar,
     model_type.hresnet18: HResNet18,
     model_type.hresnet34: HResNet34,
-    model_type.fresnet18: FullyResNet,
+#    model_type.fresnet18: FullyResNet,
     model_type.resnet18: ResNet18
 }
 
