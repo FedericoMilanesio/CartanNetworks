@@ -233,14 +233,14 @@ def train(config, path, seed):
 
     train_dataset = datasetdict[config['dataset']](train=True, transform=transform_train,)
     train_loader = DataLoader(train_dataset,
-                              batch_size=32,
+                              batch_size=128,
                               shuffle=True,
                               drop_last=True,
                               num_workers=2,
                               pin_memory=True)
     test_dataset = datasetdict[config['dataset']](train=False, transform=transform_test,)
     test_loader = DataLoader(test_dataset,
-                              batch_size = 32,
+                              batch_size = 128,
                               shuffle=True,
                               drop_last=True)
     
