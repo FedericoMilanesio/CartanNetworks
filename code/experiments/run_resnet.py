@@ -5,6 +5,8 @@ from tqdm import tqdm
 from time import time
 import pdb
 
+import itertools
+
 sys.path.append(os.path.abspath("code"))
 
 import layers, models, resnet
@@ -252,8 +254,25 @@ def train(config, path, seed):
     model.to(device)
     pbar = tqdm(range(epochs))
 
-    optimizer = RiemannianSGD(model.parameters(), lr, weight_decay=wd)
-
+    fc_params = []
+    body_params = []
+    
+    for name, module in model.named_modules():
+        if isinstance(module, layers.HyperbolicRegression):
+            fc_params.extend(module.parameters())
+    
+    fc_param_ids = set(id(p) for p in fc_params)
+    for p in model.parameters():
+        if id(p) not in fc_param_ids:
+            body_params.append(p)
+    
+    param_groups = [
+        {'params': body_params, 'lr': lr},
+        {'params': fc_params, 'lr': min(lr, 1e-3)}
+    ]
+    
+    optimizer = RiemannianSGD(param_groups,lr=lr, weight_decay=wd)
+    
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, cooldown=10)
     
     for epoch in pbar:

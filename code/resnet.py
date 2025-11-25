@@ -155,6 +155,7 @@ class HResNet(nn.Module):
                                   (512, int(W/32),  int(H/32)),
                                   (1, 1))
         self.fc = HyperbolicRegression((512 * block.expansion)+1, num_classes)
+        self.fc.bias.register_hook(lambda x: torch.clip(x, -10, 10))
 
         for m in self.modules():
             if isinstance(m, HyperbolicConv2d):
@@ -239,7 +240,6 @@ class HResNet(nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
-
         return x
 
     def forward(self, x: Tensor) -> Tensor:
