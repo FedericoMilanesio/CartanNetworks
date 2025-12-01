@@ -194,20 +194,20 @@ configs = [
      'dataset': w} for x,z,w in
      product(
         [
-          # model_type.hresnet18,
+           model_type.hresnet18,
            model_type.resnet18
         ],
-        np.logspace(-1, -3, 5),
+        np.logspace(-1, -3, 5)[:3],
        [
-         dataset.celebA,
-         dataset.cifar100,
-         dataset.cifar10,
-         dataset.tinyimagenet,
+         #dataset.celebA,
+         #dataset.cifar100,
+         #dataset.cifar10,
+         #dataset.tinyimagenet,
          dataset.tinyimagenet224
         ])
 ]
 
-base_path = Path('data/all_conv_eucl')
+base_path = Path('data/all_conv_aug')
 base_path.mkdir(exist_ok = True, parents=True)
 reps = 5
 epochs = 1000
@@ -227,16 +227,17 @@ def train(config, path, seed):
     criterion = nn.CrossEntropyLoss()
     rows = []
     transform_train = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(size=dataset_input_sizes[config['dataset']]),
+        torchvision.transforms.Resize((256, 256)),
+        torchvision.transforms.RandomCrop(224),
+        torchvision.transforms.RandomHorizontalFlip(),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(**dataset_norms[config['dataset']])
     ])
     transform_test = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(size=dataset_input_sizes[config['dataset']]),
+        torchvision.transforms.Resize((224, 224)),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(**dataset_norms[config['dataset']])
     ])
-
 
     train_dataset = datasetdict[config['dataset']](root='files/', train=True, transform=transform_train,)
     train_loader = DataLoader(train_dataset,
@@ -270,7 +271,7 @@ def train(config, path, seed):
     
     param_groups = [
         {'params': body_params, 'lr': lr},
-        {'params': fc_params, 'lr': lr}
+        {'params': fc_params, 'lr': min(lr, 1e-3)}
     ]
     
     optimizer = RiemannianSGD(param_groups,lr=lr, weight_decay=wd)
