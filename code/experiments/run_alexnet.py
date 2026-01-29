@@ -116,12 +116,15 @@ configs = [
      'dataset': w} for x,z,w in
      product(
         [
-#        model_type.halexnet,
+        model_type.halexnet,
         model_type.alexnet
         ],
         np.logspace(-1, -3, 5),
        [
-         dataset.celebA
+         dataset.celebA,
+         dataset.cifar10,
+         dataset.cifar100,
+         dataset.tinyimagenet
         ])
 ]
 

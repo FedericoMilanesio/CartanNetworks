@@ -199,10 +199,6 @@ configs = [
         ],
         np.logspace(-1, -3, 5)[:3],
        [
-         #dataset.celebA,
-         #dataset.cifar100,
-         #dataset.cifar10,
-         #dataset.tinyimagenet,
          dataset.tinyimagenet224
         ])
 ]
