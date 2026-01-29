@@ -4,6 +4,20 @@ from PGTS import HyperbolicAlgebra
 from geoopt import PoincareBall, Lorentz, ManifoldParameter, ManifoldTensor
 from layers import HyperbolicLinear, HyperbolicActivation, HyperbolicRegressionLayer, HyperbolicEmbedding, HyperbolicConv2d, HyperLayer
 
+from lorentz_fully.lorentz.layers.LFC import LorentzFullyConnected
+from lorentz_fully.lorentz.layers.LModules import LorentzAct
+from lorentz_fully.lorentz.layers.LMLR import LorentzMLR
+from lorentz_fully.lorentz.manifold import CustomLorentz
+
+from hyptorch.nn.modules.linear import HypLinear
+from hyptorch.nn.modules.mlr import HyperbolicMLR
+from hyptorch.manifolds.poincare_ball import PoincareBall
+from hyptorch.nn.modules.manifold import ToPoincare
+
+from h_plusplus.modules.linear import PoincareLinear
+from h_plusplus.modules.multinomial_logistic_regression import UnidirectionalPoincareMLR
+from h_plusplus.manifolds.stereographic.manifold import PoincareBall as BallPLusPlus
+
 class HyperbolicNetwork(torch.nn.Module):
     def __init__(self, size, activation=torch.nn.Identity, layer_size_list=None, head=None):
         super().__init__()
@@ -37,117 +51,55 @@ class HyperbolicNetwork(torch.nn.Module):
           repr = h(repr)
           yield torch.mean(m.fiber(repr).pow(2).sum(dim=-1))
 
-
-class LogexpmapLinear(torch.nn.Module):
-    def __init__(self, 
-                size_in: int, 
-                size_out: int, 
-                bias: bool = True, 
-                device=None, 
-                dtype=None):
-        super().__init__()
- 
-        self.instantiate_manifold()
-    
-        if size_out == 1:
-            raise ValueError("size_out=1 is not supported")
-
-        self.size_in, self.size_out = size_in, size_out
-        
-        factory_kwargs = {"device": device, "dtype": dtype}
-
-        self.weights = ManifoldParameter(
-            torch.empty(size_out, size_in, **factory_kwargs)
-        )
-
-        if bias:
-            self.bias = ManifoldParameter(
-                ManifoldTensor(
-                    torch.empty(size_in, **factory_kwargs), manifold = self.manifold
-                    )
-            )
-        else:
-            self.betas = None
-            self.bias = None
-
-        self.register_buffer('origin', self.manifold.origin(size_in, **factory_kwargs))
-        
-        self.reset_parameters()
-
-    def instantiate_manifold(self):
-        raise NotImplementedError
-
-    def forward(
-            self, 
-            input: torch.Tensor
-        ) -> torch.Tensor:
-
-        transport = self.manifold.transp(self.origin, self.bias, input)
-        point = self.manifold.expmap(self.bias, transport)
-        tangent_vector = self.manifold.logmap(self.origin, point)
-        return tangent_vector@self.weights.T
-
-    
-    def reset_parameters(self) -> None:
-
-        init.kaiming_normal_(self.weights) 
-        init.zeros_(self.bias)
-        
-
-class PoincareLinear(LogexpmapLinear):
-    """Creates a Hyperbolic Linear Layer in Poincare coordinates
-        
-     Args:
-        size_in (int): Number of input dimension (if the input is a torch.Tensor, size_int should be one higher)
-        size_out (int): Number of output dimensions. Cannot be lower then 2 (use HyperbolicRegression instead).
-        bias (bool, optional): If ``True``, adds a learnable bias to the
-            output. Default: ``True``
-
-    """
-
-    def instantiate_manifold(self):
-        self.manifold = PoincareBall()
-
-class LorentzLinear(LogexpmapLinear):
-    """Creates a Hyperbolic Linear Layer in Lorentz coordinates
-        
-     Args:
-        size_in (int): Number of input dimension (if the input is a torch.Tensor, size_int should be one higher)
-        size_out (int): Number of output dimensions. Cannot be lower then 2 (use HyperbolicRegression instead).
-        bias (bool, optional): If ``True``, adds a learnable bias to the
-            output. Default: ``True``
-
-    """
-
-    def instantiate_manifold(self):
-        self.manifold = Lorentz()
-
-    def reset_parameters(self):
-        super().reset_parameters()
-        self.bias = ManifoldParameter(self.manifold.projx(self.bias), manifold=self.manifold)
-        
 class PoincareNetwork(torch.nn.Module):
     def __init__(self, size, activation=torch.nn.Identity, layer_size_list=None, head=None):
         super().__init__()
+
         self.size = size
+
         if layer_size_list is None:
             layer_size_list = [16, 8, 4]
+
+        self.manifold = PoincareBall(curvature=1, trainable_curvature=False)
+        self.embed = ToPoincare(self.manifold)
+
         self.hidden = torch.nn.Sequential(*[
             torch.nn.Sequential(
-                PoincareLinear(s1, s2), activation()
+                HypLinear(s1, s2, manifold=self.manifold), activation()
             ) for s1, s2 in zip([size] + layer_size_list[:-1], layer_size_list)
         ])
         if head is None:
-            self.head = torch.nn.Identity()
+            self.head = HyperbolicMLR(ball_dim=layer_size_list[-1], n_classes=1, manifold=self.manifold)
         else:
-            self.head = head
+            self.head = HyperbolicMLR(ball_dim=layer_size_list[-1], n_classes=head, manifold=self.manifold)
 
     def forward(self, x):
-        return self.head(self.hidden(x))
-    
-    def distance_from_euclidean(self, x):
-        for _ in self.hidden:
-            yield torch.tensor(0.)
+        return self.head(self.hidden(self.embed(x)))
+
+class PlusPlusNetwork(torch.nn.Module):
+    def __init__(self, size, activation=torch.nn.Identity, layer_size_list=None, head=None):
+        super().__init__()
+
+        self.size = size
+
+        if layer_size_list is None:
+            layer_size_list = [16, 8, 4]
+
+        self.manifold = BallPLusPlus(c=1)
+        self.embed = self.manifold.expmap0
+
+        self.hidden = torch.nn.Sequential(*[
+            torch.nn.Sequential(
+                PoincareLinear(s1, s2, ball = self.manifold), activation()
+            ) for s1, s2 in zip([size] + layer_size_list[:-1], layer_size_list)
+        ])
+        if head is None:
+            self.head = UnidirectionalPoincareMLR(layer_size_list[-1], 1, ball = self.manifold)
+        else:
+            self.head = UnidirectionalPoincareMLR(layer_size_list[-1], head, ball = self.manifold)
+
+    def forward(self, x):
+        return self.head(self.hidden(self.embed(x)))
     
 
 class LorentzNetwork(torch.nn.Module):
@@ -156,18 +108,19 @@ class LorentzNetwork(torch.nn.Module):
         self.size = size
         if layer_size_list is None:
             layer_size_list = [16, 8, 4]
+        self.manifold = CustomLorentz()
         self.hidden = torch.nn.Sequential(*[
             torch.nn.Sequential(
-                LorentzLinear(s1, s2), activation()
+                LorentzFullyConnected(s1, s2), LorentzAct(activation())
             ) for s1, s2 in zip([size] + layer_size_list[:-1], layer_size_list)
         ])
         if head is None:
-            self.head = torch.nn.Identity()
+            self.head = LorentzMLR(layer_size_list[-1], 1)
         else:
-            self.head = head
+            self.head = LorentzMLR(layer_size_list[-1], head)
 
     def forward(self, x):
-        return self.head(self.hidden(x))
+        return self.head(self.hidden(self.manifold.projx(x)))
     
 class EuclideanNetwork(torch.nn.Module):
     def __init__(self, size, activation=torch.nn.Identity, layer_size_list=None, head=None):
