@@ -4,9 +4,19 @@ from torch.nn import init
 import functionals as hF
 from geoopt import ManifoldParameter, ManifoldTensor, Sphere
 from torch.nn.common_types import _size_1_t, _size_2_t
-from typing import Union
+from typing import Union, Type, Optional, Tuple
 import warnings
 import math
+
+class ClippedExpSphere(Sphere):
+    def __init__(self, intersection = None, complement = None, clip=torch.inf):
+        super().__init__(intersection, complement)
+        self.clip=clip
+
+    def retr(self, x, u):
+        if u.norm(dim=-1)>self.clip:
+            u = u/u.norm(dim=-1)*self.clip
+        return super().expmap(x, u)
 
 class HyperbolicRegression(torch.nn.Module):
     """Creates a Hyperbolic Regression Layer
@@ -50,7 +60,7 @@ class HyperbolicRegression(torch.nn.Module):
     
     def reset_parameters(self) -> None:
 
-        init.kaiming_normal_(self.weights)
+        init.kaiming_uniform_(self.weights, a=math.sqrt(5)) 
         init.zeros_(self.bias)
         init.zeros_(self.alpha)
 
@@ -154,7 +164,7 @@ class HyperbolicLinear(torch.nn.Module):
         
 
 
-        s = Sphere()
+        s = ClippedExpSphere(clip=torch.tensor(1e-2/size_out))
 
         self.thetas = ManifoldParameter(
              ManifoldTensor(
@@ -174,7 +184,7 @@ class HyperbolicLinear(torch.nn.Module):
     
     def reset_parameters(self) -> None:
 
-        init.kaiming_normal_(self.weights) 
+        init.kaiming_uniform_(self.weights, a=math.sqrt(5)) 
         init.zeros_(self.thetas)
 
         with torch.no_grad(): 
@@ -254,7 +264,7 @@ class HyperbolicConv1d(torch.nn.Module):
         else:
             self.betas = None
         
-        s = Sphere()
+        s = ClippedExpSphere(clip=torch.tensor(1e-3/out_channels))
 
         self.thetas = ManifoldParameter(
              ManifoldTensor(
@@ -303,7 +313,34 @@ class HyperbolicConv1d(torch.nn.Module):
             self.thetas[0] = 1.0
 
         self.fiberConv1d.reset_parameters()
-  
+
+class HyperbolicActivation(torch.nn.Module):  
+    """Custom hyperbolic activations"""
+    def __init__(self, 
+                 activation):
+        super().__init__()
+        self.activation = activation()
+        self._name = "h-" + activation.__name__
+    
+    @property
+    def __name__(self):
+        return self._name
+    
+    def forward(self, x) -> torch.Tensor:
+        m = HyperbolicAlgebra()
+        return torch.Tensor(torch.cat([m.cartan(x), self.activation(m.fiber(x))], dim = -1))
+    
+class DmELU(torch.nn.Module):
+    def __init__(self, alpha = 0.1):
+       super().__init__()
+       self.alpha = alpha
+       
+    def forward(self, input):
+      return (torch.nn.functional.elu(input) + self.alpha * input) / (1. + self.alpha)
+    
+    def __name__(self):
+        return "DmELU"
+    
 
 class HyperbolicConv2d(torch.nn.Module):
 
@@ -376,7 +413,7 @@ class HyperbolicConv2d(torch.nn.Module):
         else:
             self.betas = None
         
-        s = Sphere()
+        s = ClippedExpSphere(clip=torch.tensor(1e-3/out_channels))
 
         self.thetas = ManifoldParameter(
              ManifoldTensor(
@@ -387,7 +424,7 @@ class HyperbolicConv2d(torch.nn.Module):
         self.reset_parameters()
 
     def forward(self, x:torch.Tensor) -> torch.Tensor:
-
+        
         side = math.isqrt((x.size(1)-1)//self.in_channels)
         m = HyperbolicAlgebra()
             
@@ -406,10 +443,10 @@ class HyperbolicConv2d(torch.nn.Module):
 
         if self.bias_bool:
 
-            bias_stacked = torch.cat((self.betas[:1], self.betas[1:].repeat_interleave(n)*math.sqrt(n)))
-            m.group_mul(h, bias_stacked)
+            bias_stacked = torch.cat((self.betas[:1], self.betas[1:].repeat_interleave(n)/math.sqrt(n)))
+            h = m.group_mul(h, bias_stacked)
 
-        theta_stacked = torch.cat((self.thetas[:1], self.thetas[1:].repeat_interleave(n)*math.sqrt(n)))
+        theta_stacked = torch.cat((self.thetas[:1], self.thetas[1:].repeat_interleave(n)/math.sqrt(n)))
 
         return m.fiber_rotation(h, theta_stacked)
     
@@ -423,32 +460,22 @@ class HyperbolicConv2d(torch.nn.Module):
             self.thetas[0] = 1.0
 
         self.fiberConv2d.reset_parameters()
+        torch.nn.init.xavier_uniform_(self.fiberConv2d.weight)
 
-class HyperbolicActivation(torch.nn.Module):  
-    """Custom hyperbolic activations"""
-    def __init__(self, 
-                 activation):
+
+class HyperLayer(torch.nn.Module):
+    def __init__(self, Layer:Type[torch.nn.Module], in_shape:Optional[torch.Size]=None, *args, **kwargs):
         super().__init__()
-        self.activation = activation()
-        self._name = "h-" + activation.__name__
-    
-    @property
-    def __name__(self):
-        return self._name
-    
-    def forward(self, x) -> torch.Tensor:
-        m = HyperbolicAlgebra()
-        return torch.Tensor(torch.cat([m.cartan(x), self.activation(m.fiber(x))], dim = -1))
-    
-class DmELU(torch.nn.Module):
-    def __init__(self, alpha = 0.1):
-       super().__init__()
-       self.alpha = alpha
-       
-    def forward(self, input):
-      return (torch.nn.functional.elu(input) + self.alpha * input) / (1. + self.alpha)
-    
-    def __name__(self):
-        return "DmELU"
-    
+        self.layer = Layer(*args, **kwargs)
+        self.m = HyperbolicAlgebra()
+        self.in_shape = in_shape
 
+    def forward(self, x: torch.Tensor):
+        fiber = self.m.fiber(x)
+        cartan = self.m.cartan(x)
+        if self.in_shape is not None:
+            data = fiber.reshape(fiber.shape[0], *self.in_shape)
+            result = self.layer(data).flatten(start_dim=1)
+        else:
+            result = self.layer(fiber)
+        return self.m.from_cartan_and_fiber(cartan, result)

@@ -1,0 +1,11 @@
+\begin{table}
+\centering
+\caption{Resnet accuracy on real world datasets (mean $\pm$ std, $n$ = 5)}\label{tab:resnet}
+\begin{tabular}{ l  S[table-format=1.3(2)]  S[table-format=1.3(2)] }
+\toprule
+\textbf{{Problem}} & {ResNet18} & {H-ResNet18} \\
+\midrule
+TinyImagenet(224) & \underline{\num{61.4(2)}} & \underline{\num{61.5(1)}} \\
+\bottomrule
+\end{tabular}
+\end{table}

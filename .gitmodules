@@ -1,0 +1,3 @@
+[submodule "HyperbolicCV"]
+	path = HyperbolicCV
+	url = https://github.com/kschwethelm/HyperbolicCV
