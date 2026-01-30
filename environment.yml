@@ -19,7 +19,7 @@ dependencies:
   - matplotlib
   - ipykernel
   - opencv
-  - yaml
+  - pyyaml
 
   - pip:
       - geoopt==0.5.0
