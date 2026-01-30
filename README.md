@@ -18,34 +18,32 @@ To create and activate the Conda environment from the provided `.yml` file:
    conda activate hyperbolic
    ```
 
+3. **Pull submodules**:
+   ```bash
+   git submodule update --init --recursive
+   ``` 
+
 ## Training
 
-To train the classification models from Fig. 2, run:
+To train the feedforward classification models, run:
 
 ```
 python code/experiments/run_classification.py
 ```
 
-To train the regression models, run
-
+To train the convolutional networks, run first:
 ```
-python code/experiments/run_regression.py
+python prepare_imagenet.py
 ```
-
-for Tab 3. experiments and
-
+and then either
 ```
-python code/experiments/run_kmnist.py
+python code/experiments/run_alexnet.py
 ```
-
-and
-
+or 
 ```
-python code/experiments/run_cifar.py
+python code/experiments/run_resnet.py
 ```
-
-for Fig 3. expriments.
-
+Due to google drive restrictions, you will likely have to download the CelebA dataset on your own.
 ## Evaluation
 
 To evaluate our models, follow the notebook 'statistical_tests/testing.ipynb'.

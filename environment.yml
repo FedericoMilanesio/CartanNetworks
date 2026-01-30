@@ -18,6 +18,8 @@ dependencies:
   - tqdm
   - matplotlib
   - ipykernel
+  - opencv
+  - yaml
 
   - pip:
       - geoopt==0.5.0

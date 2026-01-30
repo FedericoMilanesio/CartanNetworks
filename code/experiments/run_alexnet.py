@@ -51,7 +51,7 @@ class CelebAThreeAttrClassification(CelebA):
         return image, torch.tensor(class_label, dtype=torch.long)
 
 class TinyImagenet(ImageFolder):
-   def __init__(self, root='files/tiny-224', train=True, transform = None, target_transform = None, is_valid_file = None, allow_empty = False):
+   def __init__(self, root='files/tiny-224', train=True, transform = None, target_transform = None, is_valid_file = None, allow_empty = False, download=True):
       super().__init__(root + ('/train' if train else '/test'), transform, target_transform, is_valid_file = is_valid_file, allow_empty = allow_empty)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -119,7 +119,7 @@ configs = [
         model_type.halexnet,
         model_type.alexnet
         ],
-        np.logspace(-1, -3, 5),
+        [1e-2],
        [
          dataset.celebA,
          dataset.cifar10,
@@ -130,8 +130,8 @@ configs = [
 
 base_path = Path('data/halexnet')
 base_path.mkdir(exist_ok = True, parents=True)
-reps = 5
-epochs = 1000
+reps = 1
+epochs = 1
 save_model = False
 
 def path_from_config(config):
@@ -161,14 +161,14 @@ def train(config, path, seed):
     ])
 
 
-    train_dataset = datasetdict[config['dataset']](root='files', train=True, transform=transform_train,)
+    train_dataset = datasetdict[config['dataset']](root='files', train=True, transform=transform_train,download=True)
     train_loader = DataLoader(train_dataset,
                               batch_size=64,
                               shuffle=True,
                               drop_last=True,
                               num_workers=16,
                               pin_memory=True)
-    test_dataset = datasetdict[config['dataset']](root='files', train=False, transform=transform_test,)
+    test_dataset = datasetdict[config['dataset']](root='files', train=False, transform=transform_test,download=True)
     test_loader = DataLoader(test_dataset,
                               batch_size = 1024,
                               shuffle=True,
@@ -273,12 +273,12 @@ def train(config, path, seed):
     df.to_csv(path / (str(seed) +  '_data.csv'))
 
 if __name__ == '__main__':
-    task_id = int(os.environ['TASK_ID'])
-    #task_id = 0
+    #task_id = int(os.environ['TASK_ID'])
+    task_id = 0
     print(task_id)
     l = list(configs)
     print(len(l[task_id::20]))
-    for config in l[task_id::20]:
+    for config in l:
         path = path_from_config(config)
         path.mkdir(exist_ok=True, parents=True)
         done = len(list(path.glob('*.csv')))

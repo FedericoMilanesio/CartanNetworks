@@ -205,8 +205,8 @@ configs = [
 
 base_path = Path('data/all_conv_aug')
 base_path.mkdir(exist_ok = True, parents=True)
-reps = 5
-epochs = 1000
+reps = 1
+epochs = 1
 save_model = False
 
 def path_from_config(config):
@@ -349,12 +349,12 @@ def train(config, path, seed):
     df.to_csv(path / (str(seed) +  '_data.csv'))
 
 if __name__ == '__main__':
-    task_id = int(os.environ['TASK_ID'])
-#    task_id = 0
+    #task_id = int(os.environ['TASK_ID'])
+    task_id = 0
     print(task_id)
     l = list(configs)
     print(len(l[task_id::20]))
-    for config in l[task_id::20]:
+    for config in l:
         path = path_from_config(config)
         path.mkdir(exist_ok=True, parents=True)
         done = len(list(path.glob('*.csv')))
